@@ -20,9 +20,30 @@ registerRouter.post("/", async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = new User({ name, email, password: hashedPassword });
+
+    const accessToken = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, {
+      expiresIn: "15m",
+    });
+    const refreshToken = jwt.sign(
+      { id: newUser._id },
+      process.env.REFRESH_SECRET,
+      {
+        expiresIn: "7d",
+      }
+    );
+
+    newUser.refreshToken = refreshToken;
     await newUser.save();
 
-    res.status(201).json({ message: "Користувач зареєстрований" });
+    res.status(201).json({
+      accessToken,
+      refreshToken,
+      user: {
+        id: newUser._id,
+        name: newUser.name,
+        email: newUser.email,
+      },
+    });
   } catch (error) {
     res.status(500).json({ message: "Помилка сервера" });
   }
@@ -31,30 +52,41 @@ registerRouter.post("/", async (req, res) => {
 loginRouter.post("/", async (req, res) => {
   try {
     const { email, password } = req.body;
+    console.log("Login attempt:", email);
 
     const user = await User.findOne({ email });
     if (!user) {
+      console.log("User not found");
       return res.status(400).json({ message: "Невірний email або пароль" });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
+      console.log("Password mismatch");
       return res.status(400).json({ message: "Невірний email або пароль" });
     }
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "1h",
+    const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "15m",
     });
+    const refreshToken = jwt.sign(
+      { id: user._id },
+      process.env.REFRESH_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    console.log("Login success:", user.email);
 
     res.json({
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-      },
+      accessToken,
+      refreshToken,
+      user: { id: user._id, name: user.name, email: user.email },
     });
   } catch (err) {
+    console.error("Login error:", err);
     res.status(500).json({ message: "Помилка сервера" });
   }
 });

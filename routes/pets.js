@@ -1,5 +1,6 @@
 import express from "express";
 import { Pet } from "../models/Pet.js";
+import { authenticate } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -22,6 +23,13 @@ router.get("/:id", async (req, res) => {
     console.error(err);
     res.status(500).json({ error: "Server error" });
   }
+});
+
+router.post("/adopt/:id", authenticate, async (req, res) => {
+  const petId = req.params.id;
+  const userId = req.userId;
+
+  res.json({ message: `User ${userId} wants to adopt pet ${petId}` });
 });
 
 export default router;

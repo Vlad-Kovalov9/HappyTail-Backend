@@ -7,6 +7,10 @@ export const initMongoConnection = async () => {
     const url = process.env.MONGODB_URL;
     const db = process.env.MONGODB_DB;
 
+    if (mongoose.connection.readyState === 1) {
+      return;
+    }
+
     await mongoose.connect(
       `mongodb+srv://${user}:${pwd}@${url}/${db}?retryWrites=true&w=majority`
     );
